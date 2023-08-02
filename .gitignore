@@ -1,0 +1,63 @@
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.axf
+*.crf
+*.obj
+*.elf
+
+# Listing files
+*.cod
+*.i
+*.map
+*.lst
+*.dep
+*.hex
+*.lnp
+#*.sct
+
+
+# Miscellaneous
+*.tra
+*.bin
+*.fed
+*.l1p
+*.l2p
+*.iex
+
+# User-specific uVision files
+*.opt
+*.uvopt
+*.uvoptx
+*.uvgui
+*.uvgui.*
+*.uvguix.*
+
+#uVison
+*.build_log.htm
+*.htm
+*.bak
+*.ini
+*.iex
+*.scvd
+
+documentation/html
+packages/
+JLinkLog.txt
+JLinkSettings.ini
+DebugConfig/
+RTE/
+Templates/
+Examples/
+settings/
+# Generated output files
+/Listings/*
+/Objects/*
+.vscode/*
+
+!*.uvprojx
+!*.h
+!*.c
+!*.ioc
