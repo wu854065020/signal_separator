@@ -1,0 +1,61 @@
+#include "calculate.h"
+#include "sample_config.h"
+
+// 三角波三次谐波为基波的1/9，五次谐波为基波的1/25
+#define THRID_HARMONIC_THRESHOLD 0.2f
+#define FIFTH_HARMONIC_THRESHOLD 0.02f 
+
+// 两个数组分别存最大值和索引，下标0存索引偏小的，下标1存索引偏大的，即下标0存低频，下标1存高频
+float g_maxValue[2];
+uint16_t g_maxIndex[2];
+float thirdHarmonic[2] = {0};
+float fifthHarmonic[2] = {0};
+
+// 该函数输入一个数组，并指定数组的长度。并指定最大值的数目，返回数组中前几个最大值的索引和最大值
+void getMaxValue(float *input, uint16_t len, uint16_t maxNum, uint16_t *index, float *maxValue)
+{
+    for (uint16_t i=0;i<maxNum;i++)
+    {
+        maxValue[i] = 0;
+        index[i] = 0;
+    }
+    for (uint16_t j=0;j<len;j++)
+    {
+        if (input[j] > maxValue[0])
+        {
+            maxValue[1] = maxValue[0];
+            index[1] = index[0];
+            maxValue[0] = input[0];
+            index[0] = j;
+        }
+    }
+}
+
+#define GET_FREQ(fftindex) ((float)fftindex*SAMPLE_FREQ/FFT_NUM)
+#define GET_BASE_FREQ(fftindex) (uint16_t)((GET_FREQ(fftindex)/5000.0f) + 0.5f)
+// 从题目可以推导出两个波形的基频应该是幅频曲线中最大的两个值，所以该函数先从幅频数组中找到两个最大值，
+// 然后根据两最大值索引可以找到波形的谐波分量，然后根据谐波分量的幅值可以判断波形的类型
+void getBaseFreqAndType(float *fftMag, WaveType *waveType, uint32_t *baseFreq)
+{
+    getMaxValue(fftMag+2, FFT_NUM/2-2, 2, g_maxIndex, g_maxValue);
+    g_maxIndex[0] += 2; g_maxIndex[1] += 2;
+    if (g_maxIndex[0] > g_maxIndex[1])
+    {
+        uint16_t tempIndex = g_maxIndex[0];
+        float tempValue = g_maxValue[0];
+        g_maxIndex[0] = g_maxIndex[1];
+        g_maxValue[0] = g_maxValue[1];
+        g_maxIndex[1] = tempIndex;
+        g_maxValue[1] = tempValue;
+    }
+    baseFreq[0] = GET_BASE_FREQ(g_maxIndex[0]);
+    baseFreq[1] = GET_BASE_FREQ(g_maxIndex[1]);
+    uint16_t tmpindex = 0;
+    getMaxValue(fftMag+g_maxIndex[0]*3-2, 5, 1, &tmpindex, thirdHarmonic);
+    getMaxValue(fftMag+g_maxIndex[1]*3-2, 5, 1, &tmpindex, thirdHarmonic+1);
+    getMaxValue(fftMag+g_maxIndex[0]*5-2, 5, 1, &tmpindex, fifthHarmonic);
+    getMaxValue(fftMag+g_maxIndex[1]*5-2, 5, 1, &tmpindex, fifthHarmonic+1);
+    // if (baseFreq[1] / baseFreq[0] == 3) {
+
+    // }
+}

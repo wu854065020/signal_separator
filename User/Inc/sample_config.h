@@ -1,0 +1,8 @@
+#ifndef SAMPLE_CONFIG_H_
+#define SAMPLE_CONFIG_H_
+
+#define SIGNAL_NUM 2048
+#define FFT_NUM SIGNAL_NUM
+#define SAMPLE_FREQ 1024000
+
+#endif
