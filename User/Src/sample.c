@@ -72,6 +72,9 @@ void sampleLoop(void)
             break;
         case FFT_FINISH:
             getBaseFreqAndType(g_signalVolt, g_waveType, g_baseFreq);
+            g_sampleState = GET_WARE_FINISH;
+            break;
+        case GET_WARE_FINISH:
             break;
         default:
             break;
