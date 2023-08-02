@@ -49,7 +49,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+// uint8_t g_cmdToTest = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -95,6 +95,9 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
+  MX_ADC2_Init();
+  MX_ADC3_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   MyFFTInit();
   sampleSignal();
@@ -104,8 +107,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // sampleLoop();
     /* USER CODE END WHILE */
-    sampleLoop();
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
