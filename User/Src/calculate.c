@@ -2,7 +2,7 @@
 #include "sample_config.h"
 
 // 三角波三次谐波为基波的1/9，五次谐波为基波的1/25
-#define THRID_HARMONIC_THRESHOLD 0.2f
+#define THRID_HARMONIC_THRESHOLD 0.08f
 #define FIFTH_HARMONIC_THRESHOLD 0.02f 
 
 // 两个数组分别存最大值和索引，下标0存索引偏小的，下标1存索引偏大的，即下标0存低频，下标1存高频
@@ -19,17 +19,17 @@ void getMaxValue(float *input, uint16_t len, uint16_t maxNum, uint16_t *index, f
         maxValue[i] = 0;
         index[i] = 0;
     }
-    for (uint16_t j=0;j<len;j++)
-    {
-        if (input[j] > maxValue[0])
-        {
-            for (uint16_t i=maxNum-1;i>0;i--)
-            {
-                maxValue[i] = maxValue[i-1];
-                index[i] = index[i-1];
+    for (uint16_t j=0;j<len;j++) {
+        for (uint32_t i = 0; i < maxNum; i++) {
+            if (input[j] > maxValue[i]) {
+                for (uint32_t k = maxNum - 1; k > i; k--) {
+                    maxValue[k] = maxValue[k - 1];
+                    index[k] = index[k - 1];
+                }
+                maxValue[i] = input[j];
+                index[i] = j;
+                break;
             }
-            maxValue[0] = input[j];
-            index[0] = j;
         }
     }
 }
@@ -58,7 +58,101 @@ void getBaseFreqAndType(float *fftMag, WaveType *waveType, uint32_t *baseFreq)
     getMaxValue(fftMag+g_maxIndex[1]*3-2, 5, 1, &tmpindex, g_thirdHarmonic+1);
     getMaxValue(fftMag+g_maxIndex[0]*5-2, 5, 1, &tmpindex, g_fifthHarmonic);
     getMaxValue(fftMag+g_maxIndex[1]*5-2, 5, 1, &tmpindex, g_fifthHarmonic+1);
-    if (baseFreq[1] / baseFreq[0] == 3) {
-        
+    // 若波2基频为波1基频的3倍，波2强行分析，波1减去波2的谐波分量再分析波形
+    if ((baseFreq[1] / baseFreq[0] == 3) && (baseFreq[1] % baseFreq[0] == 0)) {
+        if (g_thirdHarmonic[1] / g_maxValue[1] > THRID_HARMONIC_THRESHOLD           //判断波二3倍
+            // && g_fifthHarmonic[1] / g_maxValue[1] > FIFTH_HARMONIC_THRESHOLD) {
+        ) {
+            waveType[1] = TRIANGLE;
+            g_thirdHarmonic[0] -= ((g_thirdHarmonic[1] * 9) + g_fifthHarmonic[1] * 25) / 2;
+            // if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD
+            if (g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD       //判断波一5倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        } else {
+            waveType[1] = SINE;
+            // g_thirdHarmonic[0] -= ((g_thirdHarmonic[1] * 9) + g_fifthHarmonic[1] * 25) / 2;
+            // if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD && 
+            if (g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {    //判断波一5倍
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        }
+    // 若波2基频为波1基频的5倍，波2强行分析波形，波1减去波2的谐波分量后再分析波形
+    } else if ((baseFreq[1] / baseFreq[0] == 5) && (baseFreq[1] % baseFreq[0] == 0)) {
+        if (g_thirdHarmonic[1] / g_maxValue[1] > THRID_HARMONIC_THRESHOLD           //判断波二3倍
+            // && g_fifthHarmonic[1] / g_maxValue[1] > FIFTH_HARMONIC_THRESHOLD) {
+        ) {
+            waveType[1] = TRIANGLE;
+            g_fifthHarmonic[0] -= ((g_thirdHarmonic[1] * 9) + g_fifthHarmonic[1] * 25) / 2;
+            if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD       //判断波一3倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        } else {
+            waveType[1] = SINE;
+            if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD       //判断波一3倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        }
+    // 若波2基频为波1基频的5/3倍，波2强行分析波形，波1减去波2的谐波分量后再分析波形
+    } else if (((float)baseFreq[1] / (float)baseFreq[0] > 5.0f/3 - 0.1f) && ((float)baseFreq[1] / (float)baseFreq[0] < 5.0f/3 + 0.1f)) {
+        // if (g_thirdHarmonic[1] / g_maxValue[1] > THRID_HARMONIC_THRESHOLD
+        if (g_fifthHarmonic[1] / g_maxValue[1] > FIFTH_HARMONIC_THRESHOLD           //判断波二5倍
+            // && g_fifthHarmonic[1] / g_maxValue[1] > FIFTH_HARMONIC_THRESHOLD) {
+        ) {
+            waveType[1] = TRIANGLE;
+            // g_thirdHarmonic[0] -= ((g_thirdHarmonic[1] * 9) + g_fifthHarmonic[1] * 25) / 2;
+            if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD       //判断波一3倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        } else {
+            waveType[1] = SINE;
+            if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD       //判断波一3倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        }
+    } else {
+        if (g_thirdHarmonic[1] / g_maxValue[1] > THRID_HARMONIC_THRESHOLD           //判断波二3倍
+            // && g_fifthHarmonic[1] / g_maxValue[1] > FIFTH_HARMONIC_THRESHOLD) {
+        ) {
+            waveType[1] = TRIANGLE;
+            if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD       //判断波一3倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        } else {
+            waveType[1] = SINE;
+            if (g_thirdHarmonic[0] / g_maxValue[0] > THRID_HARMONIC_THRESHOLD       //判断波一3倍
+                // && g_fifthHarmonic[0] / g_maxValue[0] > FIFTH_HARMONIC_THRESHOLD) {
+            ) {
+                waveType[0] = TRIANGLE;
+            } else {
+                waveType[0] = SINE;
+            }
+        }
     }
 }
