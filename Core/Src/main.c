@@ -32,6 +32,7 @@
 #include "sample.h"
 #include "myfft.h"
 #include "ad9833.h"
+#include "ui_control.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,9 +106,13 @@ int main(void)
   MX_TIM2_Init();
   MX_SPI1_Init();
   MX_SPI2_Init();
+  MX_USART3_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   MyFFTInit();
   sampleInit();
+  __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
+  uiControlInit();
   AD9833_Init(&ad9833Channel1, wave_sine, g_testFreq, 0, &hspi1, GPIOA, GPIO_PIN_6);
   AD9833_Init(&ad9833Channel2, wave_sine, g_testFreq, 0, &hspi2, GPIOC, GPIO_PIN_4);
   /* USER CODE END 2 */

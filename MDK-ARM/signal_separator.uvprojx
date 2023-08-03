@@ -797,6 +797,11 @@
               <FileType>1</FileType>
               <FilePath>..\User\Src\key.c</FilePath>
             </File>
+            <File>
+              <FileName>ui_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Src\ui_control.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

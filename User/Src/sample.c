@@ -5,6 +5,7 @@
 #include "adc.h"
 #include "tim.h"
 #include "myfft.h"
+#include "usart.h"
 #include "packge.h"
 #include "sample_config.h"
 #include "blackmanharris2048.h"
@@ -14,10 +15,15 @@
 #include "ad9833.h"
 #include "key.h"
 
+extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_adc1;
+
+#define UART2_RX_BUF_LEN 64
+uint8_t g_communityRxBuf[UART2_RX_BUF_LEN];
 
 uint8_t g_syncSample = 0;
 pid_struct_t g_phasePid[2] = {0};
+float g_refPhase[2] = {0};
 float g_phase[2][2] = {0};
 float g_phaseOffset[2] = {0};
 float g_deltaPhase[2] = {0};
@@ -25,7 +31,13 @@ float g_lastDeltaPhase[2] = {0};
 float g_deltaFreq[2] = {0};
 uint16_t g_baseIndex[2];
 uint16_t g_outIndex[2];
+float g_phaseDiff = 0.0f;
+uint8_t g_isGetMsg = 0;
 
+PhaseLockState g_phaseLockState = PHASE_LOCKING;
+uint32_t g_phaseLockWaitStartTime = 0;
+uint32_t g_phaseLockWaitCurTime = 0;
+WorkMode g_workMode = NORMAL_MODE;
 uint32_t g_testTime = 0;
 uint8_t g_KeyEnable = 0;
 uint8_t isUseWindow = 0;
@@ -39,11 +51,21 @@ uint32_t g_baseFreq[2];
 WaveType g_waveType[2] = {SINE, SINE};
 
 
-
 void sampleInit(void)
 {
-    pid_init(&g_phasePid[0], 0.4f, 0.002f, 0.1f, 0.7f, 3.0f, 0.0f);
+    pid_init(&g_phasePid[0], 0.6f, 0.003f, 0.1f, 0.7f, 3.0f, 0.0f);
     pid_init(&g_phasePid[1], 0.4f, 0.002f, 0.1f, 0.7f, 3.0f, 0.0f);
+    HAL_UART_Receive_DMA(&huart2, g_communityRxBuf, UART2_RX_BUF_LEN);
+}
+
+void communityUartCallBack(void)
+{
+    uint16_t len = UART2_RX_BUF_LEN - __HAL_DMA_GET_COUNTER(&hdma_usart2_rx);
+    g_isGetMsg = 1;
+    if (len == 4) {
+        g_phaseDiff = *((float *)g_communityRxBuf);
+    }
+    HAL_UART_Receive_DMA(&huart2, g_communityRxBuf, UART2_RX_BUF_LEN);
 }
 
 void sampleSignal(void)
@@ -68,7 +90,7 @@ void sampleDmaCallback(void)
             }
         }
         g_sampleState = SAMPLE_FINISH;
-    } else if (g_sampleState == PHASE_LOCKING) {
+    } else if (g_sampleState == PHASE_LOCK) {
         g_syncSample |= 0x01;
     }
 }
@@ -104,14 +126,25 @@ void phaseLockStop(void)
 #define MYABS(x) ((x)>0?(x):-(x))
 #define RAD_TO_ANGLE(x) ((180.0f/PI)*(x))
 #define CLAMP_RAD(x) ((x)>PI?(x)-2*PI:((x)<-PI?(x)+2*PI:(x)))
-#define FREQ1_OFFSET_RATIO (12.0f/90000.0f)
-#define FREQ2_OFFSET_RATIO (-1.0f/80000.0f)
-float F1 = 0.0f;
+float g_freq1OffsetRatio = (12.0f/90000.0f);
+float g_freq2OffsetRatio =  (-1.0f/80000.0f);
 float g_outOffset[2] = {0};
+
+float get_delta_rad(float ang1, float ang2){
+    float delta = ang1 - ang2;
+    while (delta >= PI) {
+        delta -= 2*PI;
+    }
+    while (delta < -PI) {
+        delta += 2*PI;
+    }
+    return delta;
+}
+
 void phaseLockLoop(void)
 {
     float tempMax;
-    if (g_sampleState == PHASE_LOCKING) {
+    if (g_sampleState == PHASE_LOCK) {
         if (g_syncSample == 0x07) {
             HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
             HAL_ADC_Stop_DMA(&hadc1);
@@ -169,22 +202,29 @@ void phaseLockLoop(void)
             g_lastDeltaPhase[1] = g_deltaPhase[1];
             g_deltaPhase[0] = g_phase[0][1] - g_phase[0][0];
             g_deltaPhase[1] = g_phase[1][1] - g_phase[1][0];
-            if (g_deltaPhase[0] > PI) {
-                g_deltaPhase[0] -= 2*PI;
-            } else if (g_deltaPhase[0] < -PI) {
-                g_deltaPhase[0] += 2*PI;
+            if (g_workMode == PHASE_MODE) {
+                if (g_phaseLockState == PHASE_LOCKING) {
+                    g_phaseLockWaitCurTime = HAL_GetTick();
+                    if (g_phaseLockWaitCurTime - g_phaseLockWaitStartTime > 1000) {
+
+                        g_phaseLockState = PHASE_LOCKED;
+                    }
+                }
             }
-            if (g_deltaPhase[1] > PI) {
-                g_deltaPhase[1] -= 2*PI;
-            } else if (g_deltaPhase[1] < -PI) {
-                g_deltaPhase[1] += 2*PI;
-            }
-            // F1 = g_baseFreq[0]/(1-g_deltaPhase[0]/(2*PI));
-            // F1 = CLAMP(F1, g_baseFreq[0]-10, g_baseFreq[0]+10) - g_baseFreq[0];
-            g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, g_deltaPhase[0]);
-            g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, g_deltaPhase[1]);
-            g_outOffset[0] = g_baseFreq[0] * FREQ1_OFFSET_RATIO;
-            g_outOffset[1] = g_baseFreq[1] * FREQ2_OFFSET_RATIO;
+            // if (g_deltaPhase[0] > PI) {
+            //     g_deltaPhase[0] -= 2*PI;
+            // } else if (g_deltaPhase[0] < -PI) {
+            //     g_deltaPhase[0] += 2*PI;
+            // }
+            // if (g_deltaPhase[1] > PI) {
+            //     g_deltaPhase[1] -= 2*PI;
+            // } else if (g_deltaPhase[1] < -PI) {
+            //     g_deltaPhase[1] += 2*PI;
+            // }
+            g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, get_delta_rad(g_deltaPhase[0], g_refPhase[0]));
+            g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, get_delta_rad(g_deltaPhase[1], g_refPhase[1]));
+            g_outOffset[0] = g_baseFreq[0] * g_freq1OffsetRatio;
+            g_outOffset[1] = g_baseFreq[1] * g_freq2OffsetRatio;
             AD9833_SetFrequency(&ad9833Channel1, g_baseFreq[0] - g_deltaFreq[0] + g_outOffset[0]);
             AD9833_SetFrequency(&ad9833Channel2, g_baseFreq[1] - g_deltaFreq[1] + g_outOffset[1]);
             // AD9833_SetFrequency(F1);
@@ -205,7 +245,7 @@ void sampleLoop(void)
     if (g_KeyEnable == 0x00) {
         key = key_scan();
         if (key == 0x01) {
-            if (g_sampleState == PHASE_LOCKING) {
+            if (g_sampleState == PHASE_LOCK) {
                 phaseLockStop();
             }
             g_sampleState = SAMPLE_INIT;
@@ -238,13 +278,13 @@ void sampleLoop(void)
             g_sampleState = GET_WARE_FINISH;
             break;
         case GET_WARE_FINISH:
-            g_sampleState = PHASE_LOCKING;
+            g_sampleState = PHASE_LOCK;
             __HAL_TIM_SET_AUTORELOAD(&htim1, 500-1);
             __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 62);
             phaseLockStart();
             g_KeyEnable = 0x00;
             break;
-        case PHASE_LOCKING:
+        case PHASE_LOCK:
             last_tick = HAL_GetTick();
             phaseLockLoop();
             current_tick = HAL_GetTick();
@@ -260,5 +300,12 @@ void sampleLoop(void)
     }
 }
 
-
+void changeWorkMode(WorkMode mode)
+{
+    if (mode == PHASE_MODE) {
+        g_workMode = mode;
+        g_phaseLockState = PHASE_LOCKING;
+        g_phaseLockWaitStartTime = HAL_GetTick();
+    }
+}
 
