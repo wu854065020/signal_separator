@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -30,6 +31,7 @@
 #include <stdio.h>
 #include "sample.h"
 #include "myfft.h"
+#include "ad9833.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,16 +100,18 @@ int main(void)
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_TIM2_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   MyFFTInit();
-  sampleSignal();
+  AD9833_Init(wave_sine, 20000, 0);
+  sampleInit();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // sampleLoop();
+    sampleLoop();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
