@@ -45,7 +45,7 @@ void getMaxValue(float *input, uint16_t len, uint16_t maxNum, uint16_t *index, f
 // 然后根据两最大值索引可以找到波形的谐波分量，然后根据谐波分量的幅值可以判断波形的类型
 void getBaseFreqMag(float *fftMag, uint16_t *index, float *maxValue)
 {
-    getMaxValue(fftMag+2, FFT_NUM/2-2, 2, index, maxValue);
+    getMaxValue(fftMag+2, PHASE_LOCKED_FFT_NUM/2-2, 2, index, maxValue);
     index[0] += 2; index[1] += 2;
     if (index[0] > index[1])
     {

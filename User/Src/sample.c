@@ -18,7 +18,9 @@ extern DMA_HandleTypeDef hdma_adc1;
 uint8_t g_syncSample = 0;
 pid_struct_t g_phasePid[2] = {0};
 float g_phase[2][2] = {0};
+float g_phaseOffset[2] = {0};
 float g_deltaPhase[2] = {0};
+float g_lastDeltaPhase[2] = {0};
 float g_deltaFreq[2] = {0};
 uint16_t g_baseIndex[2];
 uint16_t g_outIndex[2];
@@ -97,6 +99,13 @@ void phaseLockStop(void)
     HAL_ADC_Stop_DMA(&hadc3);
 }
 
+#define CLAMP(x, min, max) ((x)>(max)?(max):((x)<(min)?(min):(x)))
+#define MYABS(x) ((x)>0?(x):-(x))
+#define RAD_TO_ANGLE(x) ((180.0f/PI)*(x))
+#define CLAMP_RAD(x) ((x)>PI?(x)-2*PI:((x)<-PI?(x)+2*PI:(x)))
+#define JUMP_THRESHOLD 0.8f*PI
+float F1 = 0.0f;
+float g_outOffset = 7;
 void phaseLockLoop(void)
 {
     float tempMax;
@@ -106,6 +115,12 @@ void phaseLockLoop(void)
             HAL_ADC_Stop_DMA(&hadc1);
             HAL_ADC_Stop_DMA(&hadc2);
             HAL_ADC_Stop_DMA(&hadc3);
+            if (g_waveType[0] == TRIANGLE) {
+                AD9833_SetWaveform(wave_triangle);
+            } else {
+                AD9833_SetWaveform(wave_sine);
+            }
+            AD9833_SetFrequency(g_baseFreq[0]);
             // base freq
             memset(g_signalFFT, 0, sizeof(g_signalFFT));
             for (uint16_t i=0;i<PHASE_LOCKED_FFT_NUM;i++) {
@@ -134,8 +149,13 @@ void phaseLockLoop(void)
             ALterFFT(g_signalFFT);
             GetFFTMag(g_signalFFT, g_signalVolt);
             getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex+1, &tempMax);
+            // for (uint16_t i=0;i<SIGNAL_NUM;i++) {
+            //     SendJustFloat6(g_signalVolt[i],(float)g_signalAdc1[i] * 3.3f / 4096.0f);
+            // }
             g_outIndex[1] += 2;
             g_phase[1][1] = atan2f(g_signalFFT[2*g_outIndex[1]], g_signalFFT[2*g_outIndex[1]+1]);
+            g_lastDeltaPhase[0] = g_deltaPhase[0];
+            g_lastDeltaPhase[1] = g_deltaPhase[1];
             g_deltaPhase[0] = g_phase[0][1] - g_phase[0][0];
             g_deltaPhase[1] = g_phase[1][1] - g_phase[1][0];
             if (g_deltaPhase[0] > PI) {
@@ -148,9 +168,13 @@ void phaseLockLoop(void)
             } else if (g_deltaPhase[1] < -PI) {
                 g_deltaPhase[1] += 2*PI;
             }
+            // F1 = g_baseFreq[0]/(1-g_deltaPhase[0]/(2*PI));
+            // F1 = CLAMP(F1, g_baseFreq[0]-10, g_baseFreq[0]+10) - g_baseFreq[0];
             g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, g_deltaPhase[0]);
             g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, g_deltaPhase[1]);
-            AD9833_SetFrequency(g_baseFreq[0] - g_deltaFreq[0]);
+            g_outOffset = g_baseFreq[0] * 12.0f/90000.0f;
+            AD9833_SetFrequency(g_baseFreq[0] - g_deltaFreq[0] + g_outOffset);
+            // AD9833_SetFrequency(F1);
             g_syncSample == 0x00;
             phaseLockStart();
         }
@@ -180,9 +204,9 @@ void sampleLoop(void)
             GetFFTMag(g_signalFFT, g_signalVolt);
             nowTime = HAL_GetTick();
             g_testTime = nowTime - lastTime;
-            for (uint16_t i=0;i<SIGNAL_NUM;i++) {
-                SendJustFloat(g_signalVolt[i],(float)g_signalAdc1[i] * 3.3f / 4096.0f);
-            }
+            // for (uint16_t i=0;i<SIGNAL_NUM;i++) {
+            //     SendJustFloat(g_signalVolt[i],(float)g_signalAdc1[i] * 3.3f / 4096.0f);
+            // }
             g_sampleState = FFT_FINISH;
             break;
         case FFT_FINISH:
@@ -191,7 +215,7 @@ void sampleLoop(void)
             break;
         case GET_WARE_FINISH:
             g_sampleState = PHASE_LOCKING;
-            __HAL_TIM_SET_AUTORELOAD(&htim1, 125-1);
+            __HAL_TIM_SET_AUTORELOAD(&htim1, 500-1);
             __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 62);
             phaseLockStart();
             break;

@@ -12,16 +12,28 @@ uint8_t GetCheck(uint8_t *src, uint16_t len)
     return check;
 }
 
-void SendJustFloat(float input1, float input2)
+void SendJustFloat2(float input1, float input2)
 {
-    JustFloat justpack;
+    JustFloat2 justpack;
     justpack.data[0] = input1;
     justpack.data[1] = input2;
     justpack.tail[0] = 0x00;
     justpack.tail[1] = 0x00;
     justpack.tail[2] = 0x80;
     justpack.tail[3] = 0x7F;
-    HAL_UART_Transmit(&huart1, (uint8_t *)&justpack, sizeof(JustFloat), 0xFFFF);
+    HAL_UART_Transmit(&huart1, (uint8_t *)&justpack, sizeof(JustFloat2), 0xFFFF);
+}
+
+void SendJustFloat6(float input1, float input2, float input3, float input4, float input5, float input6)
+{
+    JustFloat6 justpack;
+    justpack.data[0] = input1;
+    justpack.data[1] = input2;
+    justpack.tail[0] = 0x00;
+    justpack.tail[1] = 0x00;
+    justpack.tail[2] = 0x80;
+    justpack.tail[3] = 0x7F;
+    HAL_UART_Transmit(&huart1, (uint8_t *)&justpack, sizeof(JustFloat6), 0xFFFF);
 }
 
 
