@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ad9833.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -46,7 +46,8 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+extern AD9833_Handler ad9833Channel1;
+extern AD9833_Handler ad9833Channel2;
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

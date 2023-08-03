@@ -52,6 +52,9 @@
 
 /* USER CODE BEGIN PV */
 // uint8_t g_cmdToTest = 0;
+float g_testFreq = 20000.0f;
+AD9833_Handler ad9833Channel1;
+AD9833_Handler ad9833Channel2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,10 +104,12 @@ int main(void)
   MX_ADC3_Init();
   MX_TIM2_Init();
   MX_SPI1_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
   MyFFTInit();
-  AD9833_Init(wave_sine, 20000, 0);
   sampleInit();
+  AD9833_Init(&ad9833Channel1, wave_sine, g_testFreq, 0, &hspi1, GPIOA, GPIO_PIN_6);
+  AD9833_Init(&ad9833Channel2, wave_sine, g_testFreq, 0, &hspi2, GPIOC, GPIO_PIN_4);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -112,6 +117,9 @@ int main(void)
   while (1)
   {
     sampleLoop();
+//    AD9833_SetFrequency(&ad9833Channel1, g_testFreq);
+//    // AD9833_SetFrequency(&ad9833Channel2, g_testFreq);
+//    HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

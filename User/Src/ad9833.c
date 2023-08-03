@@ -1,3 +1,5 @@
+#include "ad9833.h"
+
 /*
  * @file AD9833.h
  * @brief Function for the AD9833 chip
@@ -17,53 +19,48 @@
 
 #include "ad9833.h"
 
-	uint8_t _waveform = WAVEFORM_SINE;
-    uint8_t _sleep_mode = NO_POWERDOWN;
-    uint8_t _freq_source = 0;
-    uint8_t _phase_source = 0;
-    uint8_t _reset_state = 0;
 
-void AD9833_Select(void)
+void AD9833_Select(AD9833_Handler* device)
 {
-	HAL_GPIO_WritePin(AD9833_FSYNC_GPIO_Port, AD9833_FSYNC_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(device->cs_port, device->cs_pin, GPIO_PIN_RESET);
 }
 
-void AD9833_Unselect(void)
+void AD9833_Unselect(AD9833_Handler* device)
 {
-	HAL_GPIO_WritePin(AD9833_FSYNC_GPIO_Port, AD9833_FSYNC_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(device->cs_port, device->cs_pin, GPIO_PIN_SET);
 }
 
-void AD9833_WriteRegister(uint16_t data)
+void AD9833_WriteRegister(AD9833_Handler* device, uint16_t data)
 {
-	AD9833_Select();
+	AD9833_Select(device);
 	uint8_t LByte = data & 0xff;
 	uint8_t HByte = (data >> 8) & 0xff;
-	HAL_SPI_Transmit(&AD9833_SPI_PORT, &HByte, 1, HAL_MAX_DELAY);
-	HAL_SPI_Transmit(&AD9833_SPI_PORT, &LByte, 1, HAL_MAX_DELAY);
-	AD9833_Unselect();
+	HAL_SPI_Transmit(device->SPI_handler, &HByte, 1, HAL_MAX_DELAY);
+	HAL_SPI_Transmit(device->SPI_handler, &LByte, 1, HAL_MAX_DELAY);
+	AD9833_Unselect(device);
 }
 
-void AD9833_WriteCfgReg(void)
+void AD9833_WriteCfgReg(AD9833_Handler* device)
 {
 	uint16_t cfg = 0;
-	cfg |= _waveform;
-	cfg |= _sleep_mode;
-	cfg |= (_freq_source ? F_SELECT_CFG : 0);	//it's unimportant because don't use FREQ1
-	cfg |= (_phase_source ? P_SELECT_CFG : 0);	//it's unimportant because don't use PHASE1
-	cfg |= (_reset_state ? RESET_CFG : 0);
+	cfg |= device->_waveform;
+	cfg |= device->_sleep_mode;
+	cfg |= (device->_freq_source ? F_SELECT_CFG : 0);	//it's unimportant because don't use FREQ1
+	cfg |= (device->_phase_source ? P_SELECT_CFG : 0);	//it's unimportant because don't use PHASE1
+	cfg |= (device->_reset_state ? RESET_CFG : 0);
 	cfg |= B28_CFG;
-	AD9833_WriteRegister(cfg);
+	AD9833_WriteRegister(device, cfg);
 }
 
-void AD9833_SetWaveform(WaveDef Wave)
+void AD9833_SetWaveform(AD9833_Handler* device, WaveDef Wave)
 {
-	if (Wave == wave_sine) 			_waveform = WAVEFORM_SINE;
-	else if (Wave == wave_square) 	_waveform = WAVEFORM_SQUARE;
-	else if (Wave == wave_triangle)	_waveform = WAVEFORM_TRIANGLE;
-	AD9833_WriteCfgReg();
+	if (Wave == wave_sine) 			device->_waveform = WAVEFORM_SINE;
+	else if (Wave == wave_square) 	device->_waveform = WAVEFORM_SQUARE;
+	else if (Wave == wave_triangle)	device->_waveform = WAVEFORM_TRIANGLE;
+	AD9833_WriteCfgReg(device);
 }
 
-void AD9833_SetFrequency(float freq)
+void AD9833_SetFrequency(AD9833_Handler* device, float freq)
 {
 	// TODO: calculate max frequency based on refFrequency.
 	// Use the calculations for sanity checks on numbers.
@@ -79,37 +76,44 @@ void AD9833_SetFrequency(float freq)
 	uint16_t LSB = FREQ0_REG | (freq_reg & 0x3FFF);
 	uint16_t MSB = FREQ0_REG | (freq_reg >> 14);
 
-	AD9833_WriteCfgReg();	// Update Config Register
-	AD9833_WriteRegister(LSB);
-	AD9833_WriteRegister(MSB);
+	AD9833_WriteCfgReg(device);	// Update Config Register
+	AD9833_WriteRegister(device, LSB);
+	AD9833_WriteRegister(device, MSB);
 }
 
-void AD9833_SetPhase(uint16_t phase_deg)
+void AD9833_SetPhase(AD9833_Handler* device, uint16_t phase_deg)
 {
 	if(phase_deg < 0) phase_deg = 0;
 	else if (phase_deg > 360) phase_deg %= 360;
 	uint16_t phase_val  = ((uint16_t)(phase_deg * BITS_PER_DEG)) &  0xFFF;
-	AD9833_WriteRegister(PHASE0_REG | phase_val);
+	AD9833_WriteRegister(device, PHASE0_REG | phase_val);
 }
 
-void AD9833_Init(WaveDef Wave, uint32_t freq, uint16_t phase_deg)
+void AD9833_Init(AD9833_Handler* device, WaveDef Wave, uint32_t freq, uint16_t phase_deg, SPI_HandleTypeDef *SPI_handler, GPIO_TypeDef *cs_port, uint16_t cs_pin)
 {
-	AD9833_OutputEnable(0);
-	AD9833_SetWaveform(Wave);
-	AD9833_WriteCfgReg();
-	AD9833_SetFrequency(freq);
-	AD9833_SetPhase(phase_deg);
-	AD9833_OutputEnable(1);
+	device->SPI_handler = SPI_handler;
+	device->cs_port = cs_port;
+	device->cs_pin = cs_pin;
+	device->_sleep_mode = NO_POWERDOWN;
+	device->_freq_source = 0;
+	device->_phase_source = 0;
+	device->_reset_state = 0;
+	AD9833_OutputEnable(device, 0);
+	AD9833_SetWaveform(device, Wave);
+	AD9833_WriteCfgReg(device);
+	AD9833_SetFrequency(device, freq);
+	AD9833_SetPhase(device, phase_deg);
+	AD9833_OutputEnable(device, 1);
 }
 
-void AD9833_SleepMode(uint8_t mode)
+void AD9833_SleepMode(AD9833_Handler* device, uint8_t mode)
 {
-	_sleep_mode = mode;
-	AD9833_WriteCfgReg();
+	device->_sleep_mode = mode;
+	AD9833_WriteCfgReg(device);
 }
 
-void AD9833_OutputEnable(uint8_t output_state)
+void AD9833_OutputEnable(AD9833_Handler* device, uint8_t output_state)
 {
-	_reset_state = !output_state;
-	AD9833_WriteCfgReg();
+	device->_reset_state = !output_state;
+	AD9833_WriteCfgReg(device);
 }
