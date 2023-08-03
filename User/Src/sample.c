@@ -12,6 +12,7 @@
 #include "pid.h"
 #include "arm_math.h"
 #include "ad9833.h"
+#include "key.h"
 
 extern DMA_HandleTypeDef hdma_adc1;
 
@@ -26,7 +27,7 @@ uint16_t g_baseIndex[2];
 uint16_t g_outIndex[2];
 
 uint32_t g_testTime = 0;
-
+uint8_t g_KeyEnable = 0;
 uint8_t isUseWindow = 0;
 SampleState g_sampleState = SAMPLE_IDLE;
 uint16_t g_signalAdc1[SIGNAL_NUM] = {0};
@@ -42,7 +43,7 @@ WaveType g_waveType[2] = {SINE, SINE};
 void sampleInit(void)
 {
     pid_init(&g_phasePid[0], 0.4f, 0.002f, 0.1f, 0.7f, 3.0f, 0.0f);
-    pid_init(&g_phasePid[1], 0.4f, 0.001f, 0.1f, 0.7f, 3.0f, 0.0f);
+    pid_init(&g_phasePid[1], 0.4f, 0.002f, 0.1f, 0.7f, 3.0f, 0.0f);
 }
 
 void sampleSignal(void)
@@ -200,6 +201,17 @@ void sampleLoop(void)
 {
     uint32_t lastTime = 0;
     uint32_t nowTime = 0;
+    uint8_t key = 0;
+    if (g_KeyEnable == 0x00) {
+        key = key_scan();
+        if (key == 0x01) {
+            if (g_sampleState == PHASE_LOCKING) {
+                phaseLockStop();
+            }
+            g_sampleState = SAMPLE_INIT;
+            g_KeyEnable = 0x01;
+        }
+    }
     switch (g_sampleState)
     {
         case SAMPLE_INIT:
@@ -230,6 +242,7 @@ void sampleLoop(void)
             __HAL_TIM_SET_AUTORELOAD(&htim1, 500-1);
             __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 62);
             phaseLockStart();
+            g_KeyEnable = 0x00;
             break;
         case PHASE_LOCKING:
             last_tick = HAL_GetTick();

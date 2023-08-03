@@ -792,10 +792,12 @@
               <FileType>1</FileType>
               <FilePath>..\User\Src\ad9833.c</FilePath>
             </File>
+            <File>
+              <FileName>key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Src\key.c</FilePath>
+            </File>
           </Files>
-        </Group>
-        <Group>
-          <GroupName>::CMSIS</GroupName>
         </Group>
         <Group>
           <GroupName>Middlewares/Library/DSP Library/DSP Library</GroupName>
@@ -894,6 +896,9 @@
               </FileOption>
             </File>
           </Files>
+        </Group>
+        <Group>
+          <GroupName>::CMSIS</GroupName>
         </Group>
       </Groups>
     </Target>
