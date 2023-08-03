@@ -1,8 +1,9 @@
 #ifndef SAMPLE_CONFIG_H_
 #define SAMPLE_CONFIG_H_
 
-#define SIGNAL_NUM 512
+#define SIGNAL_NUM 1024
 #define FFT_NUM SIGNAL_NUM
-#define SAMPLE_FREQ 256000
+#define SAMPLE_FREQ 1024000
+#define PHASE_LOCKED_FFT_NUM 256
 
 #endif

@@ -4,19 +4,26 @@
 
 
 // arm_cfft_radix2_instance_f32 g_1024fft_h;
-arm_cfft_radix2_instance_f32 g_2048fft_h;
+arm_cfft_radix2_instance_f32 g_myfft_h;
+arm_cfft_radix2_instance_f32 g_alterfft_h;
 // extern const arm_cfft_instance_f32 arm_cfft_sR_f32_len1024;
 
 void MyFFTInit(void)
 {
   // arm_cfft_radix2_init_f32(&g_1024fft_h, FFT_NUM, 0, 1);
-  arm_cfft_radix2_init_f32(&g_2048fft_h, FFT_NUM, 0, 1);
+  arm_cfft_radix2_init_f32(&g_myfft_h, FFT_NUM, 0, 1);
+  arm_cfft_radix2_init_f32(&g_alterfft_h, PHASE_LOCKED_FFT_NUM, 0, 1);
 }
 
 void MyFFT(float *signvolt)
 {
   // arm_cfft_radix2_f32(&g_1024fft_h, signvolt);
-  arm_cfft_radix2_f32(&g_2048fft_h, signvolt);
+  arm_cfft_radix2_f32(&g_myfft_h, signvolt);
+}
+
+void ALterFFT(float *signvolt)
+{
+  arm_cfft_radix2_f32(&g_alterfft_h, signvolt);
 }
 
 void GetFFTMag(float *input, float *output)

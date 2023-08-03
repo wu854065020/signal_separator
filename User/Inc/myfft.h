@@ -5,6 +5,7 @@
 
 void MyFFTInit(void);
 void MyFFT(float *signvolt);
+void ALterFFT(float *signvolt);
 void GetFFTMag(float *input, float *output);
 
 #endif

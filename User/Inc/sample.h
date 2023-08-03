@@ -3,12 +3,14 @@
 
 typedef enum
 {
-    SAMPLE_INIT = 0,
+    SAMPLE_IDLE = 0,
+    SAMPLE_INIT,
     SAMPLEING,
     SAMPLE_FINISH,
     FFT_FINISH,
     GET_WARE_FINISH,
     PHASE_LOCKING,
+    PHASE_OVER,
 } SampleState;
 
 
