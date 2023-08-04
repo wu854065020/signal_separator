@@ -55,6 +55,10 @@
 // uint8_t g_cmdToTest = 0;
 AD9833_Handler ad9833Channel1;
 AD9833_Handler ad9833Channel2;
+uint8_t g_testAuto = 0;
+float g_mainTestFreq1 = 80000.0f;
+float g_mainTestFreq2 = 100000.0f;
+extern float g_freqOffsetRatio[];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -112,14 +116,21 @@ int main(void)
   __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
   uiControlInit();
   sampleInit();
-  AD9833_Init(&ad9833Channel1, wave_sine, 20000, 0, &hspi1, GPIOA, GPIO_PIN_6);
-  AD9833_Init(&ad9833Channel2, wave_sine, 20000, 0, &hspi2, GPIOC, GPIO_PIN_4);
+  AD9833_Init(&ad9833Channel1, wave_sine, 100000, 0, &hspi1, GPIOA, GPIO_PIN_6);
+  AD9833_Init(&ad9833Channel2, wave_sine, 100000, 0, &hspi2, GPIOC, GPIO_PIN_4);
+  autoGetFreqOffsetStart();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // autoGetFreqOffset();
+    // if (g_testAuto) {
+    //   AD9833_SetFrequency(&ad9833Channel1, g_mainTestFreq1 + g_mainTestFreq1 * g_freqOffsetRatio[0]);
+    //   AD9833_SetFrequency(&ad9833Channel2, g_mainTestFreq2 + g_mainTestFreq2 * g_freqOffsetRatio[1]);
+    //   HAL_Delay(1000);
+    // }
     sampleLoop();
 //    AD9833_SetFrequency(&ad9833Channel1, g_testFreq);
 //    // AD9833_SetFrequency(&ad9833Channel2, g_testFreq);

@@ -17,6 +17,7 @@
 #define TEST_FREQ 100000
 uint32_t g_testFreq = 100000;
 
+extern uint8_t g_testAuto;
 extern DMA_HandleTypeDef hdma_adc1;
 
 uint8_t g_syncSample = 0;
@@ -34,7 +35,7 @@ float g_phaseDiff = 0.0f;
 uint8_t g_isGetMsg = 0;
 
 int8_t g_testOffset[2] = {2, 0};
-float g_freqOffsetRatio[2] = {(2.0f/100000.0f), (0.0f/80000.0f)};
+float g_freqOffsetRatio[2] = {(2.60076431e-05f), (6.42714122e-06f)};
 static uint8_t steadyFlag = 0;
 static uint16_t g_steadyDiffCnt = 0;
 float g_steadyDiff[2] = {0.0f};
@@ -86,7 +87,7 @@ void sampleDmaCallback(void)
             }
         }
         g_sampleState = SAMPLE_FINISH;
-    } else if (g_sampleState == PHASE_LOCK) {
+    } else {
         g_syncSample |= 0x01;
     }
 }
@@ -151,18 +152,22 @@ void getSteady(void)
     }
 }
 
-#define MAX_SAMPLE_CNT 11
+#define MAX_SAMPLE_CNT 31
 uint32_t g_offsetCntTick = 0;
 uint8_t g_sampleCnt = 0;
 float g_totalDeltaPhase[2] = {0};
 void autoGetFreqOffsetStart(void)
 {
+    __HAL_TIM_SET_AUTORELOAD(&htim1, 500-1);
+    __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 62);
     __HAL_TIM_SET_COUNTER(&htim2, 0);
     g_sampleCnt = 0;
     g_offsetCntTick = 0;
     g_totalDeltaPhase[0] = 0;
     g_totalDeltaPhase[1] = 0;
     HAL_TIM_Base_Start(&htim2);
+    AD9833_SetFrequency(&ad9833Channel1, 80000.0f);
+    AD9833_SetFrequency(&ad9833Channel2, 100000.0f);
     phaseLockStart();
 }
 
@@ -218,9 +223,16 @@ void autoGetFreqOffset(void)
             g_sampleCnt = 0;
             g_totalDeltaPhase[0] /= 2*PI;
             g_totalDeltaPhase[1] /= 2*PI;
-            g_freqOffsetRatio[0] = g_totalDeltaPhase[0] / g_offsetCntTick * 1000000.0f;
+            g_freqOffsetRatio[0] = g_totalDeltaPhase[0] / g_offsetCntTick * 1000000.0f / 80000.0f;
+            g_freqOffsetRatio[1] = g_totalDeltaPhase[1] / g_offsetCntTick * 1000000.0f / TEST_FREQ;
+            // AD9833_SetFrequency(&ad9833Channel1, 80000.0f + g_freqOffsetRatio[0] * 80000.0f);
+            // AD9833_SetFrequency(&ad9833Channel2, TEST_FREQ + g_freqOffsetRatio[1] * TEST_FREQ);
             // g_sampleState = GET_OFFSET;
-        }        
+            phaseLockStop();
+            g_testAuto = 1;
+        } else {
+            phaseLockStart();
+        }
     }
 }
 
