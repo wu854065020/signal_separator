@@ -53,7 +53,6 @@
 
 /* USER CODE BEGIN PV */
 // uint8_t g_cmdToTest = 0;
-float g_testFreq = 20000.0f;
 AD9833_Handler ad9833Channel1;
 AD9833_Handler ad9833Channel2;
 /* USER CODE END PV */
@@ -110,11 +109,11 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   MyFFTInit();
-  sampleInit();
   __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);
   uiControlInit();
-  AD9833_Init(&ad9833Channel1, wave_sine, g_testFreq, 0, &hspi1, GPIOA, GPIO_PIN_6);
-  AD9833_Init(&ad9833Channel2, wave_sine, g_testFreq, 0, &hspi2, GPIOC, GPIO_PIN_4);
+  sampleInit();
+  AD9833_Init(&ad9833Channel1, wave_sine, 20000, 0, &hspi1, GPIOA, GPIO_PIN_6);
+  AD9833_Init(&ad9833Channel2, wave_sine, 20000, 0, &hspi2, GPIOC, GPIO_PIN_4);
   /* USER CODE END 2 */
 
   /* Infinite loop */

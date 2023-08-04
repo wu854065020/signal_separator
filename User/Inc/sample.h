@@ -42,6 +42,7 @@ void channel1SampleCallBack(void);
 void channel2SampleCallBack(void);
 void changeWorkMode(WorkMode mode);
 void setFirstPhase(float phase);
+void setFreqOffsetRatio(uint8_t wave, uint8_t offset);
 
 
 #endif

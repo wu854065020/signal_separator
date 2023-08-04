@@ -33,10 +33,22 @@ void uiSendWaveInf(uint32_t wave1Freq, uint32_t wave2Freq, uint8_t wave1Type, ui
     HAL_UART_Transmit(&huart3, strBuf, strlen(strBuf), 1000);
 }
 
+#define WAVEA_OFFSET_FORMAT "page2.n0.val=%d\xff\xff\xff"
+#define WAVEB_OFFSET_FORMAT "page3.n1.val=%d\xff\xff\xff"
+void uiSendOffset(uint8_t offset1, uint8_t offset2)
+{
+    sprintf(strBuf, WAVEA_OFFSET_FORMAT, offset1);
+    HAL_UART_Transmit(&huart3, strBuf, strlen(strBuf), 1000);
+    sprintf(strBuf, WAVEB_OFFSET_FORMAT, offset2);
+    HAL_UART_Transmit(&huart3, strBuf, strlen(strBuf), 1000);
+}
+
 void uiUartCallBack(void)
 {
-    uint8_t isPackage = 0;
+    uint8_t isTail = 1;
     uint16_t len = UI_RX_BUF_LEN - huart3.hdmarx->Instance->NDTR;
+    // HAL_UART_AbortReceive(&huart3);
+    HAL_UART_DMAStop(&huart3);
     switch (g_uiRxBuf[0])
     {
         case PHASE_CONTROL_HEAD:
@@ -47,11 +59,11 @@ void uiUartCallBack(void)
                 {
                     if (g_phaseControlFrame.tail[i] != 0x00)
                     {
-                        isPackage = 0;
+                        isTail = 0;
                         break;
                     }
                 }
-                if (isPackage == 1) {
+                if (isTail == 1) {
                     setFirstPhase(g_phaseControlFrame.phase * DEG_TO_RAD);
                     if (g_phaseControlFrame.enable == 0x01)
                     {
@@ -70,22 +82,26 @@ void uiUartCallBack(void)
                 {
                     if (g_testControlFrame.tail[i] != 0x00)
                     {
-                        isPackage = 0;
+                        isTail = 0;
                         break;
                     }
                 }
-                if (isPackage == 1) {
-                    if (g_testControlFrame.enable == 0x01)
+                if (isTail == 1) {
+                    if (g_testControlFrame.enable == 0x02)
                     {
                         changeWorkMode(Test_MODE);
-                    } else {
+                    } else if (g_testControlFrame.enable == 0x00) {
                         changeWorkMode(NORMAL_MODE);
+                    } else if (g_testControlFrame.enable == 0x01) {
+                        setFreqOffsetRatio(g_testControlFrame.wave-1, g_testControlFrame.offset);
                     }
+                    
                 }
             }
             break;
         default:
             break;
     }
+    __HAL_DMA_SET_COUNTER(huart3.hdmarx, 0);
     HAL_UART_Receive_DMA(&huart3, g_uiRxBuf, UI_RX_BUF_LEN);
 }

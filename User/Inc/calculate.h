@@ -5,7 +5,8 @@
 
 typedef enum
 {
-    SINE = 0,
+    Init,
+    SINE,
     TRIANGLE,
 } WaveType;
 
