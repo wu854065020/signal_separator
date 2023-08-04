@@ -35,7 +35,7 @@ void uiSendWaveInf(uint32_t wave1Freq, uint32_t wave2Freq, uint8_t wave1Type, ui
 
 #define WAVEA_OFFSET_FORMAT "page2.n0.val=%d\xff\xff\xff"
 #define WAVEB_OFFSET_FORMAT "page3.n1.val=%d\xff\xff\xff"
-void uiSendOffset(uint8_t offset1, uint8_t offset2)
+void uiSendOffset(int8_t offset1, int8_t offset2)
 {
     sprintf(strBuf, WAVEA_OFFSET_FORMAT, offset1);
     HAL_UART_Transmit(&huart3, strBuf, strlen(strBuf), 1000);
@@ -94,8 +94,11 @@ void uiUartCallBack(void)
                         changeWorkMode(NORMAL_MODE);
                     } else if (g_testControlFrame.enable == 0x01) {
                         setFreqOffsetRatio(g_testControlFrame.wave-1, g_testControlFrame.offset);
-                    }
-                    
+                    } else if (g_testControlFrame.enable == 0x03) {
+                        if (g_testControlFrame.offset == 0x01) {
+                            autoGetFreqOffsetStart();
+                        }
+                    }                    
                 }
             }
             break;

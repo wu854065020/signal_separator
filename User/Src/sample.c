@@ -165,9 +165,10 @@ void autoGetFreqOffsetStart(void)
     g_offsetCntTick = 0;
     g_totalDeltaPhase[0] = 0;
     g_totalDeltaPhase[1] = 0;
-    HAL_TIM_Base_Start(&htim2);
+    g_sampleState = AUTO_SETOFFSET;
     AD9833_SetFrequency(&ad9833Channel1, 80000.0f);
     AD9833_SetFrequency(&ad9833Channel2, 100000.0f);
+    HAL_TIM_Base_Start(&htim2);
     phaseLockStart();
 }
 
@@ -227,7 +228,7 @@ void autoGetFreqOffset(void)
             g_freqOffsetRatio[1] = g_totalDeltaPhase[1] / g_offsetCntTick * 1000000.0f / TEST_FREQ;
             // AD9833_SetFrequency(&ad9833Channel1, 80000.0f + g_freqOffsetRatio[0] * 80000.0f);
             // AD9833_SetFrequency(&ad9833Channel2, TEST_FREQ + g_freqOffsetRatio[1] * TEST_FREQ);
-            // g_sampleState = GET_OFFSET;
+            g_sampleState = SAMPLE_IDLE;
             phaseLockStop();
             g_testAuto = 1;
         } else {
@@ -451,6 +452,9 @@ void sampleLoop(void)
             AD9833_SetFrequency(&ad9833Channel1, g_totalFreq[0]);
             AD9833_SetFrequency(&ad9833Channel2, g_totalFreq[1]);
             HAL_Delay(8);
+            break;
+        case AUTO_SETOFFSET:
+            autoGetFreqOffset();
             break;
         default:
             break;

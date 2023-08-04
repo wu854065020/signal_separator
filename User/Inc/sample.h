@@ -16,6 +16,8 @@ typedef enum
     PHASE_OVER,
     MORE_FREQ,
     TEST_STATUS,
+    AUTO_SETOFFSET,
+    
 } SampleState;
 
 typedef enum
