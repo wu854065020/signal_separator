@@ -27,6 +27,7 @@ float g_refPhase[2] = {0};
 float g_phase[2][2] = {0};
 float g_phaseOffset[2] = {0};
 float g_deltaPhase[2] = {0};
+float g_deltaBasePhase = 0;
 float g_lastDeltaPhase[2] = {0};
 float g_deltaFreq[2] = {0};
 uint16_t g_baseIndex[2];
@@ -34,6 +35,10 @@ uint16_t g_outIndex[2];
 float g_phaseDiff = 0.0f;
 uint8_t g_isGetMsg = 0;
 
+static uint8_t steadyFlag = 0;
+static uint16_t g_steadyDiffCnt = 0;
+float g_steadyDiff[2] = {0.0f};
+float g_firstPhase = 0.0;
 PhaseLockState g_phaseLockState = PHASE_LOCKING;
 uint32_t g_phaseLockWaitStartTime = 0;
 uint32_t g_phaseLockWaitCurTime = 0;
@@ -141,15 +146,31 @@ float get_delta_rad(float ang1, float ang2){
     return delta;
 }
 
+void getSteady(void)
+{
+    static uint8_t steadyCnt = 0;
+    if (steadyFlag == 0) {
+        if (g_phasePid[0].err[0] < 0.05f && g_phasePid[1].err[0] < 0.05f && g_phasePid[0].err[0] > -0.05f && g_phasePid[1].err[0] > -0.05f) {
+            steadyCnt++;
+            if (steadyCnt > 10) {
+                steadyFlag = 1;
+                steadyCnt = 0;
+            }
+        } else {
+            steadyCnt = 0;
+        }
+    }
+}
+
+#define STEADY_CNT_MAX 20
 void phaseLockLoop(void)
 {
     float tempMax;
+    uint8_t n = g_baseFreq[1] / g_baseFreq[0];
+    n = n>2?n:2;
     if (g_sampleState == PHASE_LOCK) {
         if (g_syncSample == 0x07) {
-            HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-            HAL_ADC_Stop_DMA(&hadc1);
-            HAL_ADC_Stop_DMA(&hadc2);
-            HAL_ADC_Stop_DMA(&hadc3);
+            phaseLockStop();
         // 还原波形类型
             if (g_waveType[0] == TRIANGLE) {
                 AD9833_SetWaveform(&ad9833Channel1, wave_triangle);
@@ -204,27 +225,55 @@ void phaseLockLoop(void)
             g_deltaPhase[1] = g_phase[1][1] - g_phase[1][0];
             if (g_workMode == PHASE_MODE) {
                 if (g_phaseLockState == PHASE_LOCKING) {
-                    g_phaseLockWaitCurTime = HAL_GetTick();
-                    if (g_phaseLockWaitCurTime - g_phaseLockWaitStartTime > 1000) {
-
+                    getSteady();
+                    if (steadyFlag == 1) {
                         g_phaseLockState = PHASE_LOCKED;
                     }
+                } else if (g_phaseLockState == PHASE_LOCKED) {
+                    g_steadyDiff[0] += g_phasePid[0].err[0];
+                    g_steadyDiff[1] += g_phasePid[1].err[0];
+                    g_steadyDiffCnt++;
+                    if (g_steadyDiffCnt >= STEADY_CNT_MAX) {
+                        g_steadyDiff[0] /= STEADY_CNT_MAX;
+                        g_steadyDiff[1] /= STEADY_CNT_MAX;
+                        g_phaseLockState = GOT_PHASE_DIFF;
+                    }
+                } else if (g_phaseLockState == GOT_PHASE_DIFF) {
+                    while (g_phase[0][0] >= PI/n) {
+                        g_phase[0][0] -= 2*PI/n;
+                    }
+                    while (g_phase[0][0] < -PI/n) {
+                        g_phase[0][0] += 2*PI/n;
+                    }
+                    g_deltaBasePhase = n*g_phase[0][0] - g_phase[1][0];
+                    if (g_deltaBasePhase > PI) {
+                        g_deltaBasePhase -= 2*PI;
+                    } else if (g_deltaBasePhase < -PI) {
+                        g_deltaBasePhase += 2*PI;
+                    }
                 }
+                g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, get_delta_rad(g_deltaPhase[0], g_refPhase[0]-g_steadyDiff[0]));
+                g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, 
+                    // get_delta_rad(g_deltaPhase[1], g_refPhase[1]-g_steadyDiff[1]-g_deltaBasePhase-(n-1)*PI/2));
+                    get_delta_rad(g_deltaPhase[1], g_refPhase[1]-g_steadyDiff[1]+g_deltaBasePhase));
+                g_outOffset[0] = g_baseFreq[0] * g_freq1OffsetRatio;
+                g_outOffset[1] = g_baseFreq[1] * g_freq2OffsetRatio;
+            } else if (g_workMode == NORMAL_MODE) {
+                // if (g_deltaPhase[0] > PI) {
+                //     g_deltaPhase[0] -= 2*PI;
+                // } else if (g_deltaPhase[0] < -PI) {
+                //     g_deltaPhase[0] += 2*PI;
+                // }
+                // if (g_deltaPhase[1] > PI) {
+                //     g_deltaPhase[1] -= 2*PI;
+                // } else if (g_deltaPhase[1] < -PI) {
+                //     g_deltaPhase[1] += 2*PI;
+                // }
+                g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, get_delta_rad(g_deltaPhase[0], g_refPhase[0]));
+                g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, get_delta_rad(g_deltaPhase[1], g_refPhase[1]));
+                g_outOffset[0] = g_baseFreq[0] * g_freq1OffsetRatio;
+                g_outOffset[1] = g_baseFreq[1] * g_freq2OffsetRatio;
             }
-            // if (g_deltaPhase[0] > PI) {
-            //     g_deltaPhase[0] -= 2*PI;
-            // } else if (g_deltaPhase[0] < -PI) {
-            //     g_deltaPhase[0] += 2*PI;
-            // }
-            // if (g_deltaPhase[1] > PI) {
-            //     g_deltaPhase[1] -= 2*PI;
-            // } else if (g_deltaPhase[1] < -PI) {
-            //     g_deltaPhase[1] += 2*PI;
-            // }
-            g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, get_delta_rad(g_deltaPhase[0], g_refPhase[0]));
-            g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, get_delta_rad(g_deltaPhase[1], g_refPhase[1]));
-            g_outOffset[0] = g_baseFreq[0] * g_freq1OffsetRatio;
-            g_outOffset[1] = g_baseFreq[1] * g_freq2OffsetRatio;
             AD9833_SetFrequency(&ad9833Channel1, g_baseFreq[0] - g_deltaFreq[0] + g_outOffset[0]);
             AD9833_SetFrequency(&ad9833Channel2, g_baseFreq[1] - g_deltaFreq[1] + g_outOffset[1]);
             // AD9833_SetFrequency(F1);
@@ -304,8 +353,11 @@ void changeWorkMode(WorkMode mode)
 {
     if (mode == PHASE_MODE) {
         g_workMode = mode;
+        g_steadyDiffCnt = 0;
+        g_steadyDiff[0] = 0;
+        g_steadyDiff[1] = 0;
         g_phaseLockState = PHASE_LOCKING;
-        g_phaseLockWaitStartTime = HAL_GetTick();
+        g_deltaBasePhase = 0;
     }
 }
 

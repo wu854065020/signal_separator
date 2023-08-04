@@ -26,6 +26,7 @@ typedef enum
     PHASE_LOCKING,
     PHASE_LOCKED,
     GOT_PHASE_DIFF,
+    PHASE_LOCK_OK,
 } PhaseLockState;
 
 void sampleInit(void);
