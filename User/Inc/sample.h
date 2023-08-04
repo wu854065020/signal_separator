@@ -1,6 +1,9 @@
 #ifndef SAMPLE_H_
 #define SAMPLE_H_
 
+#include "arm_math.h"
+
+#define DEG_TO_RAD (PI/180.0f)
 typedef enum
 {
     SAMPLE_IDLE = 0,
@@ -12,6 +15,7 @@ typedef enum
     PHASE_LOCK,
     PHASE_OVER,
     MORE_FREQ,
+    TEST_STATUS,
 } SampleState;
 
 typedef enum
@@ -37,6 +41,7 @@ void sampleLoop(void);
 void channel1SampleCallBack(void);
 void channel2SampleCallBack(void);
 void changeWorkMode(WorkMode mode);
+void setFirstPhase(float phase);
 
 
 #endif

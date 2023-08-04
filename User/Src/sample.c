@@ -11,9 +11,9 @@
 #include "blackmanharris2048.h"
 #include "calculate.h"
 #include "pid.h"
-#include "arm_math.h"
 #include "ad9833.h"
 #include "key.h"
+#include "ui_control.h"
 
 extern DMA_HandleTypeDef hdma_usart2_rx;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -59,7 +59,7 @@ WaveType g_waveType[2] = {SINE, SINE};
 void sampleInit(void)
 {
     pid_init(&g_phasePid[0], 0.6f, 0.003f, 0.1f, 0.7f, 3.0f, 0.0f);
-    pid_init(&g_phasePid[1], 0.4f, 0.002f, 0.1f, 0.7f, 3.0f, 0.0f);
+    pid_init(&g_phasePid[1], 0.6f, 0.003f, 0.1f, 0.7f, 3.0f, 0.0f);
     HAL_UART_Receive_DMA(&huart2, g_communityRxBuf, UART2_RX_BUF_LEN);
 }
 
@@ -150,7 +150,7 @@ void getSteady(void)
 {
     static uint8_t steadyCnt = 0;
     if (steadyFlag == 0) {
-        if (g_phasePid[0].err[0] < 0.05f && g_phasePid[1].err[0] < 0.05f && g_phasePid[0].err[0] > -0.05f && g_phasePid[1].err[0] > -0.05f) {
+        if (g_phasePid[0].err[0] < 0.07f && g_phasePid[1].err[0] < 0.07f && g_phasePid[0].err[0] > -0.07f && g_phasePid[1].err[0] > -0.07f) {
             steadyCnt++;
             if (steadyCnt > 10) {
                 steadyFlag = 1;
@@ -162,7 +162,7 @@ void getSteady(void)
     }
 }
 
-#define STEADY_CNT_MAX 20
+#define STEADY_CNT_MAX 10
 void phaseLockLoop(void)
 {
     float tempMax;
@@ -225,19 +225,21 @@ void phaseLockLoop(void)
             g_deltaPhase[1] = g_phase[1][1] - g_phase[1][0];
             if (g_workMode == PHASE_MODE) {
                 if (g_phaseLockState == PHASE_LOCKING) {
-                    getSteady();
-                    if (steadyFlag == 1) {
-                        g_phaseLockState = PHASE_LOCKED;
-                    }
+                    // getSteady();
+                    // if (steadyFlag == 1) {
+                    //     g_phaseLockState = PHASE_LOCKED;
+                    // }
+                    g_phaseLockState = PHASE_LOCKED;
                 } else if (g_phaseLockState == PHASE_LOCKED) {
-                    g_steadyDiff[0] += g_phasePid[0].err[0];
-                    g_steadyDiff[1] += g_phasePid[1].err[0];
-                    g_steadyDiffCnt++;
-                    if (g_steadyDiffCnt >= STEADY_CNT_MAX) {
-                        g_steadyDiff[0] /= STEADY_CNT_MAX;
-                        g_steadyDiff[1] /= STEADY_CNT_MAX;
-                        g_phaseLockState = GOT_PHASE_DIFF;
-                    }
+                    // g_steadyDiff[0] += g_phasePid[0].err[0];
+                    // g_steadyDiff[1] += g_phasePid[1].err[0];
+                    // g_steadyDiffCnt++;
+                    // if (g_steadyDiffCnt >= STEADY_CNT_MAX) {
+                    //     g_steadyDiff[0] /= STEADY_CNT_MAX;
+                    //     g_steadyDiff[1] /= STEADY_CNT_MAX;
+                    //     g_phaseLockState = GOT_PHASE_DIFF;
+                    // }
+                    g_phaseLockState = GOT_PHASE_DIFF;
                 } else if (g_phaseLockState == GOT_PHASE_DIFF) {
                     while (g_phase[0][0] >= PI/n) {
                         g_phase[0][0] -= 2*PI/n;
@@ -252,10 +254,11 @@ void phaseLockLoop(void)
                         g_deltaBasePhase += 2*PI;
                     }
                 }
-                g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, get_delta_rad(g_deltaPhase[0], g_refPhase[0]-g_steadyDiff[0]));
+                float isGetPi = (n%2)?0:PI;
+                g_deltaFreq[0] = pid_calc(&g_phasePid[0], 0, 
+                    get_delta_rad(g_deltaPhase[0], g_refPhase[0]-g_deltaBasePhase/2/n+isGetPi/2/n+g_firstPhase/2/n-g_steadyDiff[0]));
                 g_deltaFreq[1] = pid_calc(&g_phasePid[1], 0, 
-                    // get_delta_rad(g_deltaPhase[1], g_refPhase[1]-g_steadyDiff[1]-g_deltaBasePhase-(n-1)*PI/2));
-                    get_delta_rad(g_deltaPhase[1], g_refPhase[1]-g_steadyDiff[1]+g_deltaBasePhase));
+                    get_delta_rad(g_deltaPhase[1], g_refPhase[1]-g_steadyDiff[1]+g_deltaBasePhase/2-isGetPi/2-g_firstPhase/2));
                 g_outOffset[0] = g_baseFreq[0] * g_freq1OffsetRatio;
                 g_outOffset[1] = g_baseFreq[1] * g_freq2OffsetRatio;
             } else if (g_workMode == NORMAL_MODE) {
@@ -304,7 +307,14 @@ void sampleLoop(void)
     switch (g_sampleState)
     {
         case SAMPLE_INIT:
-            sampleSignal();
+            if (g_workMode != Test_MODE) {
+                sampleSignal();
+            } else {
+                AD9833_SetWaveform(&ad9833Channel1, wave_sine);
+                AD9833_SetWaveform(&ad9833Channel2, wave_sine);
+                AD9833_SetFrequency(&ad9833Channel1, 1000000);
+                AD9833_SetFrequency(&ad9833Channel2, 1000000);
+            }
             g_sampleState = SAMPLEING;
             break;
         case SAMPLE_FINISH:
@@ -344,6 +354,9 @@ void sampleLoop(void)
             g_sampleState = SAMPLE_IDLE;
             phaseLockStop();
             break;
+        case TEST_STATUS:
+
+            break;
         default:
             break;
     }
@@ -351,13 +364,21 @@ void sampleLoop(void)
 
 void changeWorkMode(WorkMode mode)
 {
-    if (mode == PHASE_MODE) {
+    if (mode != g_workMode) {
+        g_sampleState = PHASE_OVER;
+        if (mode == PHASE_MODE) {
+            g_steadyDiffCnt = 0;
+            g_steadyDiff[0] = 0;
+            g_steadyDiff[1] = 0;
+            g_phaseLockState = PHASE_LOCKING;
+            g_deltaBasePhase = 0;
+        }
         g_workMode = mode;
-        g_steadyDiffCnt = 0;
-        g_steadyDiff[0] = 0;
-        g_steadyDiff[1] = 0;
-        g_phaseLockState = PHASE_LOCKING;
-        g_deltaBasePhase = 0;
     }
+}
+
+void setFirstPhase(float phase)
+{
+    g_firstPhase = phase;
 }
 
