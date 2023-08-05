@@ -95,10 +95,12 @@ void uiUartCallBack(void)
                     } else if (g_testControlFrame.enable == 0x01) {
                         setFreqOffsetRatio(g_testControlFrame.wave-1, g_testControlFrame.offset);
                     } else if (g_testControlFrame.enable == 0x03) {
-                        if (g_testControlFrame.offset == 0x01) {
+                        if (g_testControlFrame.offset == 0x00) {
                             autoGetFreqOffsetStart();
                         }
-                    }                    
+                    } else if (g_testControlFrame.enable == 0x04) {
+                        reloadParam();
+                    }                 
                 }
             }
             break;

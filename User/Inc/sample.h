@@ -36,6 +36,7 @@ typedef enum
 } PhaseLockState;
 
 void sampleInit(void);
+void reloadParam(void);
 void sampleSignal(void);
 void sampleDmaCallback(void);
 void phaseLockLoop(void);

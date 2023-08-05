@@ -33,6 +33,7 @@
 #include "myfft.h"
 #include "ad9833.h"
 #include "ui_control.h"
+#include "save_data.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,6 +60,7 @@ uint8_t g_testAuto = 0;
 float g_mainTestFreq1 = 80000.0f;
 float g_mainTestFreq2 = 100000.0f;
 extern float g_freqOffsetRatio[];
+SaveData savaTest = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -118,7 +120,7 @@ int main(void)
   sampleInit();
   AD9833_Init(&ad9833Channel1, wave_sine, 100000, 0, &hspi1, GPIOA, GPIO_PIN_6);
   AD9833_Init(&ad9833Channel2, wave_sine, 100000, 0, &hspi2, GPIOC, GPIO_PIN_4);
-  autoGetFreqOffsetStart();
+  // autoGetFreqOffsetStart();
   /* USER CODE END 2 */
 
   /* Infinite loop */

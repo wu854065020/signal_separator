@@ -29,6 +29,6 @@ typedef __packed struct
 void uiControlInit(void);
 void uiUartCallBack(void);
 void uiSendWaveInf(uint32_t wave1Freq, uint32_t wave2Freq, uint8_t wave1Type, uint8_t wave2Type);
-void uiSendOffset(uint8_t offset1, uint8_t offset2);
+void uiSendOffset(int8_t offset1, int8_t offset2);
 
 #endif

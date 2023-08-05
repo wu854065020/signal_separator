@@ -13,6 +13,7 @@
 #include "ad9833.h"
 #include "key.h"
 #include "ui_control.h"
+#include "save_data.h"
 
 #define TEST_FREQ 100000
 uint32_t g_testFreq = 100000;
@@ -35,6 +36,7 @@ float g_phaseDiff = 0.0f;
 uint8_t g_isGetMsg = 0;
 
 int8_t g_testOffset[2] = {2, 0};
+float g_freqOffsetRatioOrigin[2] = {(2.60076431e-05f), (6.42714122e-06f)};
 float g_freqOffsetRatio[2] = {(2.60076431e-05f), (6.42714122e-06f)};
 static uint8_t steadyFlag = 0;
 static uint16_t g_steadyDiffCnt = 0;
@@ -60,9 +62,21 @@ WaveType g_waveType[2] = {SINE, SINE};
 
 void sampleInit(void)
 {
+    SaveData temp = {0};
     uiSendOffset(g_testOffset[0], g_testOffset[1]);
-    pid_init(&g_phasePid[0], 8.0f, 0.02f, 0.1f, 3.0f, 16.0f, 0.0f);
-    pid_init(&g_phasePid[1], 8.0f, 0.02f, 0.1f, 3.0f, 16.0f, 0.0f);
+    pid_init(&g_phasePid[0], 3.0f, 0.02f, 0.1f, 12.0f, 16.0f, 0.0f);
+    pid_init(&g_phasePid[1], 3.0f, 0.02f, 0.1f, 12.0f, 16.0f, 0.0f);
+    temp = loadOffsetData();
+    g_freqOffsetRatio[0] = temp.freqOffset[0];
+    g_freqOffsetRatio[1] = temp.freqOffset[1];
+}
+
+void reloadParam(void)
+{
+    g_freqOffsetRatio[0] = g_freqOffsetRatioOrigin[0];
+    g_freqOffsetRatio[1] = g_freqOffsetRatioOrigin[1];
+    SaveData t_saveData = {.freqOffset={g_freqOffsetRatioOrigin[0],g_freqOffsetRatioOrigin[1]}};
+    saveOffsetData(t_saveData);
 }
 
 void sampleSignal(void)
@@ -174,7 +188,7 @@ void autoGetFreqOffsetStart(void)
 
 void autoGetFreqOffset(void)
 {
-    float tempMax = 0;
+    float tempMax[2] = 0;
     if (g_syncSample == 0x07) {
         g_sampleCnt++;
         if (g_sampleCnt >= MAX_SAMPLE_CNT) {
@@ -189,7 +203,7 @@ void autoGetFreqOffset(void)
         }
         ALterFFT(g_signalFFT);
         GetFFTMag(g_signalFFT, g_signalVolt);
-        getBaseFreqMag(g_signalVolt, g_baseIndex, &tempMax);
+        getBaseFreqMag(g_signalVolt, g_baseIndex, tempMax);
         g_phase[0][0] = atan2f(g_signalFFT[2*g_baseIndex[0]], g_signalFFT[2*g_baseIndex[0]+1]);
         g_phase[1][0] = atan2f(g_signalFFT[2*g_baseIndex[1]], g_signalFFT[2*g_baseIndex[1]+1]);
     // channel 1
@@ -199,7 +213,7 @@ void autoGetFreqOffset(void)
         }
         ALterFFT(g_signalFFT);
         GetFFTMag(g_signalFFT, g_signalVolt);
-        getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex, &tempMax);
+        getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex, tempMax);
         g_outIndex[0] += 2;
         g_phase[0][1] = atan2f(g_signalFFT[2*g_outIndex[0]], g_signalFFT[2*g_outIndex[0]+1]);
     // channel 2
@@ -209,7 +223,7 @@ void autoGetFreqOffset(void)
         }
         ALterFFT(g_signalFFT);
         GetFFTMag(g_signalFFT, g_signalVolt);
-        getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex+1, &tempMax);
+        getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex+1, tempMax);
         g_outIndex[1] += 2;
         g_phase[1][1] = atan2f(g_signalFFT[2*g_outIndex[1]], g_signalFFT[2*g_outIndex[1]+1]);
         g_lastDeltaPhase[0] = g_deltaPhase[0];
@@ -229,6 +243,10 @@ void autoGetFreqOffset(void)
             // AD9833_SetFrequency(&ad9833Channel1, 80000.0f + g_freqOffsetRatio[0] * 80000.0f);
             // AD9833_SetFrequency(&ad9833Channel2, TEST_FREQ + g_freqOffsetRatio[1] * TEST_FREQ);
             g_sampleState = SAMPLE_IDLE;
+            SaveData temp = {0};
+            temp.freqOffset[0] = g_freqOffsetRatio[0];
+            temp.freqOffset[1] = g_freqOffsetRatio[1];
+            saveOffsetData(temp);
             phaseLockStop();
             g_testAuto = 1;
         } else {
@@ -243,7 +261,7 @@ uint32_t current_tick = 0;
 uint32_t delta_tick = 0;
 void phaseLockLoop(void)
 {
-    float tempMax;
+    float tempMax[2];
     uint8_t n = g_baseFreq[1] / g_baseFreq[0];
     n = n>2?n:2;
     if (g_sampleState == PHASE_LOCK) {
@@ -252,20 +270,6 @@ void phaseLockLoop(void)
             delta_tick = current_tick - last_tick;
             last_tick = current_tick;
             phaseLockStop();
-        // 还原波形类型
-        //     if (g_waveType[0] == TRIANGLE) {
-        //         AD9833_SetWaveform(&ad9833Channel1, wave_triangle);
-        //     } else {
-        //         AD9833_SetWaveform(&ad9833Channel1, wave_sine);
-        //     }
-        //     if (g_waveType[1] == TRIANGLE) {
-        //         AD9833_SetWaveform(&ad9833Channel2, wave_triangle);
-        //     } else {
-        //         AD9833_SetWaveform(&ad9833Channel2, wave_sine);
-        //     }
-        // // 还原波形基频
-        //     AD9833_SetFrequency(&ad9833Channel1, g_baseFreq[0]);
-        //     AD9833_SetFrequency(&ad9833Channel2, g_baseFreq[1]);
         // base freq
             memset(g_signalFFT, 0, sizeof(g_signalFFT));
             for (uint16_t i=0;i<PHASE_LOCKED_FFT_NUM;i++) {
@@ -273,7 +277,7 @@ void phaseLockLoop(void)
             }
             ALterFFT(g_signalFFT);
             GetFFTMag(g_signalFFT, g_signalVolt);
-            getBaseFreqMag(g_signalVolt, g_baseIndex, &tempMax);
+            getBaseFreqMag(g_signalVolt, g_baseIndex, tempMax);
             g_phase[0][0] = atan2f(g_signalFFT[2*g_baseIndex[0]], g_signalFFT[2*g_baseIndex[0]+1]);
             g_phase[1][0] = atan2f(g_signalFFT[2*g_baseIndex[1]], g_signalFFT[2*g_baseIndex[1]+1]);
         // channel 1
@@ -283,7 +287,7 @@ void phaseLockLoop(void)
             }
             ALterFFT(g_signalFFT);
             GetFFTMag(g_signalFFT, g_signalVolt);
-            getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex, &tempMax);
+            getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex, tempMax);
             g_outIndex[0] += 2;
             g_phase[0][1] = atan2f(g_signalFFT[2*g_outIndex[0]], g_signalFFT[2*g_outIndex[0]+1]);
         // channel 2
@@ -293,7 +297,7 @@ void phaseLockLoop(void)
             }
             ALterFFT(g_signalFFT);
             GetFFTMag(g_signalFFT, g_signalVolt);
-            getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex+1, &tempMax);
+            getMaxValue(g_signalVolt+2, PHASE_LOCKED_FFT_NUM/2-2, 1, g_outIndex+1, tempMax);
             g_outIndex[1] += 2;
             g_phase[1][1] = atan2f(g_signalFFT[2*g_outIndex[1]], g_signalFFT[2*g_outIndex[1]+1]);
             // for (uint16_t i=0;i<SIGNAL_NUM;i++) {
@@ -433,6 +437,8 @@ void sampleLoop(void)
             g_sampleState = PHASE_LOCK;
             __HAL_TIM_SET_AUTORELOAD(&htim1, 500-1);
             __HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 62);
+            g_phasePid[0].i_out = 0;
+            g_phasePid[1].i_out = 0;
             phaseLockStart();
             g_KeyEnable = 0x00;
             break;
