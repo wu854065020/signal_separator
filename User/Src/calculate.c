@@ -1,7 +1,7 @@
 #include "calculate.h"
 #include "sample_config.h"
 
-// 三角波三次谐波为基波的1/9，五次谐波为基波的1/25
+// 三角波三次谐波为基波的1/9，五次谐波为基波的1/25，为了提高鲁棒性，把阈值调低了
 #define THRID_HARMONIC_THRESHOLD 0.08f
 #define FIFTH_HARMONIC_THRESHOLD 0.02f 
 
@@ -41,10 +41,12 @@ void getMaxValue(float *input, uint16_t len, uint16_t maxNum, uint16_t *index, f
 #define FIFTH_NUM 1.0f/25
 #define GET_FREQ(fftindex) ((float)fftindex*SAMPLE_FREQ/FFT_NUM)
 #define GET_BASE_FREQ(fftindex) ((uint16_t)((GET_FREQ(fftindex)/5000.0f) + 0.5f) * 5000)
-// 从题目可以推导出两个波形的基频应该是幅频曲线中最大的两个值，所以该函数先从幅频数组中找到两个最大值，
-// 然后根据两最大值索引可以找到波形的谐波分量，然后根据谐波分量的幅值可以判断波形的类型
+/*
+与下面找基频函数不同的是，这个是锁相环所使用的256点fft找基频
+*/
 void getBaseFreqMag(float *fftMag, uint16_t *index, float *maxValue)
 {
+    // 加2避免判断到直流分量
     getMaxValue(fftMag+2, PHASE_LOCKED_FFT_NUM/2-2, 2, index, maxValue);
     index[0] += 2; index[1] += 2;
     if (index[0] > index[1])
@@ -58,6 +60,11 @@ void getBaseFreqMag(float *fftMag, uint16_t *index, float *maxValue)
     }
 }
 
+/*
+从题目可以推导出两个波形的基频应该是幅频曲线中最大的两个值，所以该函数先从幅频数组中找到两个最大值，
+然后根据两最大值索引可以找到波形的谐波分量，然后根据谐波分量的幅值可以判断波形的类型
+但其实直接判断幅度不是很合理，因为波形幅度不是简单的相加，要考虑相位，但实测够用了，所以没做那么复杂
+*/
 void getBaseFreqAndType(float *fft, float *fftMag, WaveType *waveType, uint32_t *baseFreq)
 {
     getMaxValue(fftMag+2, FFT_NUM/2-2, 2, g_maxIndex, g_maxValue);

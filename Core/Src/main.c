@@ -1,4 +1,11 @@
 /* USER CODE BEGIN Header */
+/*
+ * @Author: wzccccccc
+ * @Date: 2023-08-02 09:07:59
+ * @LastEditors: wzccccccc wu854065020@gmail.com
+ * @LastEditTime: 2024-04-01 14:32:55
+ * @FilePath: \signal_separator\Core\Src\main.c
+ */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -56,6 +63,7 @@
 // uint8_t g_cmdToTest = 0;
 AD9833_Handler ad9833Channel1;
 AD9833_Handler ad9833Channel2;
+// 以下变量是测试变量无需在意
 uint8_t g_testAuto = 0;
 float g_mainTestFreq1 = 80000.0f;
 float g_mainTestFreq2 = 100000.0f;
@@ -133,7 +141,7 @@ int main(void)
     //   AD9833_SetFrequency(&ad9833Channel2, g_mainTestFreq2 + g_mainTestFreq2 * g_freqOffsetRatio[1]);
     //   HAL_Delay(1000);
     // }
-    sampleLoop();
+    sampleLoop(); // 状态机循环函数
 //    AD9833_SetFrequency(&ad9833Channel1, g_testFreq);
 //    // AD9833_SetFrequency(&ad9833Channel2, g_testFreq);
 //    HAL_Delay(1000);

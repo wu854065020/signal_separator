@@ -1,3 +1,10 @@
+/*
+ * @Author: wzccccccc
+ * @Date: 2023-08-30 16:58:21
+ * @LastEditors: wzccccccc wu854065020@gmail.com
+ * @LastEditTime: 2024-04-01 14:40:44
+ * @FilePath: \signal_separator\User\Inc\ui_control.h
+ */
 #ifndef UI_CONTROL_H_
 #define UI_CONTROL_H_
 

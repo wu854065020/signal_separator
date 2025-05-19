@@ -1,18 +1,8 @@
 /*
- * @file AD9833.h
- * @brief Function prototypes for the AD9833 chip
- *
- * This contains the prototypes for the AD9833
- * driver and eventually any macros, constants.
- *
- * !!!!IMPORTANT!!!!
- * Setup Hardware SPI to POLATRITY HIGH, PHASE 1 EDGE
- *
- * Offical Documents:
- * https://www.analog.com/media/en/technical-documentation/application-notes/AN-1070.pdf
- * https://www.analog.com/media/en/technical-documentation/data-sheets/AD9833.pdf
- *
- * @author Andrii Ivanchenko <ivanchenko59@gmail.com>
+ * @Author: fc51005
+ * @Date: 2023-08-30 16:58:21
+ * @LastEditTime: 2024-04-01 14:39:26
+ * @FilePath: \signal_separator\User\Inc\ad9833.h
  */
 
 #ifndef INC_AD9833_H_

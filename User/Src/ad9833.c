@@ -1,24 +1,10 @@
-#include "ad9833.h"
-
 /*
- * @file AD9833.h
- * @brief Function for the AD9833 chip
- *
- * This contains functions for working with
- * AD9833 signal generator.
- *
- * !!!!IMPORTANT!!!!
- * Setup Hardware SPI to POLATRITY HIGH, PHASE 1 EDGE
- *
- * Offical Documents:
- * https://www.analog.com/media/en/technical-documentation/application-notes/AN-1070.pdf
- * https://www.analog.com/media/en/technical-documentation/data-sheets/AD9833.pdf
- *
- * @author Andrii Ivanchenko <ivanchenko59@gmail.com>
+ * @Author: fc51005
+ * @Date: 2023-08-30 16:58:21
+ * @LastEditTime: 2024-04-01 14:38:37
+ * @FilePath: \signal_separator\User\Src\ad9833.c
  */
-
 #include "ad9833.h"
-
 
 void AD9833_Select(AD9833_Handler* device)
 {

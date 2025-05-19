@@ -1,3 +1,10 @@
+/*
+ * @Author: wzccccccc
+ * @Date: 2023-08-02 18:30:10
+ * @LastEditors: wzccccccc wu854065020@gmail.com
+ * @LastEditTime: 2024-04-01 14:40:03
+ * @FilePath: \signal_separator\User\Inc\blackmanharris2048.h
+ */
 #ifndef BLACKMANHARRIS2048_H_
 #define BLACKMANHARRIS2048_H_
 

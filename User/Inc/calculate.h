@@ -1,3 +1,10 @@
+/*
+ * @Author: wzccccccc
+ * @Date: 2023-08-02 17:31:56
+ * @LastEditors: wzccccccc wu854065020@gmail.com
+ * @LastEditTime: 2024-04-01 14:40:04
+ * @FilePath: \signal_separator\User\Inc\calculate.h
+ */
 #ifndef CALCULATE_H_
 #define CALCULATE_H_
 

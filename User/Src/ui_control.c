@@ -1,3 +1,10 @@
+/*
+ * @Author: wzccccccc
+ * @Date: 2023-08-30 16:58:21
+ * @LastEditors: wzccccccc wu854065020@gmail.com
+ * @LastEditTime: 2024-04-01 14:34:17
+ * @FilePath: \signal_separator\User\Src\ui_control.c
+ */
 #include  <string.h>
 #include <stdio.h>
 #include "ui_control.h"

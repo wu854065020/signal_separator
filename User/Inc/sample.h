@@ -1,3 +1,10 @@
+/*
+ * @Author: wzccccccc
+ * @Date: 2023-08-02 10:04:38
+ * @LastEditors: wzccccccc wu854065020@gmail.com
+ * @LastEditTime: 2024-04-01 14:40:32
+ * @FilePath: \signal_separator\User\Inc\sample.h
+ */
 #ifndef SAMPLE_H_
 #define SAMPLE_H_
 
